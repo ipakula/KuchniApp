@@ -1,0 +1,19 @@
+{
+  "name": "kuchniapp",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/mobile",
+    "apps/backend"
+  ],
+  "scripts": {
+    "mobile": "yarn workspace kuchniapp-mobile start",
+    "backend": "yarn workspace kuchniapp-backend dev",
+    "lint": "yarn workspaces run lint",
+    "typecheck": "yarn workspaces run typecheck"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "yarn": ">=1.22.0"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "KuchniApp",
+    "slug": "kuchniapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "kuchniapp",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2D6A4F"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "pl.kuchniapp",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Aparat służy do skanowania kodów kreskowych produktów.",
+        "NSPhotoLibraryUsageDescription": "Galeria służy do wybierania zdjęć produktów."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2D6A4F"
+      },
+      "package": "pl.kuchniapp",
+      "permissions": [
+        "CAMERA",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Aparat służy do skanowania kodów kreskowych produktów."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2D6A4F"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
