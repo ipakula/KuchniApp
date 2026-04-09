@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  TextInput,
+  Alert,
+} from 'react-native';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
+import { DatePickerModal } from '../ui/DatePickerModal';
 import { Colors } from '../../constants/colors';
 import { AddPantryItemDTO, Unit } from '../../types/pantry.types';
 import { UNITS } from '../../constants/units';
+import { CATEGORIES } from '../../constants/categories';
 
 interface ScannedProduct {
   barcode?: string;
@@ -29,27 +37,42 @@ export function ProductConfirmSheet({
   onAdd,
   locations,
 }: ProductConfirmSheetProps) {
+  const isUnknown = !product?.name;
+
+  const [name, setName] = useState(product?.name || '');
+  const [category, setCategory] = useState(product?.category || '');
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState<Unit>('szt');
   const [selectedLocation, setSelectedLocation] = useState(locations[0]?.id || '');
-  const [expiryDate, setExpiryDate] = useState('');
+  const [expiryDate, setExpiryDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
 
   if (!product) return null;
 
+  const adjustQty = (delta: number) => {
+    setQuantity((prev) => String(Math.max(0.5, parseFloat(prev) + delta)));
+  };
+
   const handleAdd = async () => {
+    if (!name.trim()) {
+      Alert.alert('Wymagane', 'Podaj nazwę produktu');
+      return;
+    }
     setLoading(true);
     try {
       await onAdd({
         product_id: product.id,
-        name: product.name || 'Produkt',
-        brand: product.brand,
+        name: name.trim(),
         barcode: product.barcode,
-        category: product.category,
+        category: category || undefined,
         quantity: parseFloat(quantity) || 1,
         unit,
         location_id: selectedLocation || undefined,
-        expiration_date: expiryDate || undefined,
+        expiration_date: expiryDate ? expiryDate.toISOString().split('T')[0] : undefined,
         added_from: 'scan',
       });
       onClose();
@@ -64,47 +87,91 @@ export function ProductConfirmSheet({
       <View style={styles.sheet}>
         <View style={styles.handle} />
 
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Produkt */}
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+          {/* Nagłówek produktu */}
           <View style={styles.productHeader}>
-            <Text style={styles.productName}>{product.name || 'Nieznany produkt'}</Text>
-            {product.brand && <Text style={styles.productBrand}>{product.brand}</Text>}
-            {product.category && <Text style={styles.productCategory}>{product.category}</Text>}
+            {isUnknown ? (
+              <View style={styles.unknownBanner}>
+                <Text style={styles.unknownIcon}>🔍</Text>
+                <View>
+                  <Text style={styles.unknownTitle}>Nieznany produkt</Text>
+                  <Text style={styles.unknownSub}>Uzupełnij dane poniżej</Text>
+                </View>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.productName}>{name}</Text>
+                {category ? (
+                  <Text style={styles.productCategory}>
+                    {CATEGORIES.find((c) => c.value === category)?.icon} {category}
+                  </Text>
+                ) : null}
+              </>
+            )}
           </View>
 
+          {/* Nazwa (edytowalna zawsze gdy nieznany, opcjonalnie dla znanych) */}
+          {isUnknown && (
+            <>
+              <Text style={styles.sectionLabel}>Nazwa produktu *</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="np. Mleko UHT 3,2%"
+                placeholderTextColor={Colors.textMuted}
+                value={name}
+                onChangeText={setName}
+                returnKeyType="done"
+              />
+            </>
+          )}
+
+          {/* Kategoria */}
+          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>
+            Kategoria{!isUnknown && category ? ` · ${CATEGORIES.find(c => c.value === category)?.icon}` : ''}
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+            {CATEGORIES.map((c) => (
+              <Pressable
+                key={c.value}
+                style={[styles.chip, category === c.value && styles.chipActive]}
+                onPress={() => setCategory(category === c.value ? '' : c.value)}
+              >
+                <Text style={styles.chipIcon}>{c.icon}</Text>
+                <Text style={[styles.chipText, category === c.value && styles.chipTextActive]}>
+                  {c.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
           {/* Ilość */}
+          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Ilość</Text>
           <View style={styles.quantityRow}>
-            <Pressable
-              style={styles.qtyBtn}
-              onPress={() => setQuantity(String(Math.max(1, parseFloat(quantity) - 1)))}
-            >
+            <Pressable style={styles.qtyBtn} onPress={() => adjustQty(-1)}>
               <Text style={styles.qtyBtnText}>−</Text>
             </Pressable>
-            <Input
+            <TextInput
+              style={styles.qtyInput}
               value={quantity}
               onChangeText={setQuantity}
               keyboardType="decimal-pad"
-              style={styles.qtyInput}
-              containerStyle={styles.qtyContainer}
             />
-            <Pressable
-              style={styles.qtyBtn}
-              onPress={() => setQuantity(String(parseFloat(quantity) + 1))}
-            >
+            <Pressable style={styles.qtyBtn} onPress={() => adjustQty(1)}>
               <Text style={styles.qtyBtnText}>+</Text>
             </Pressable>
           </View>
 
           {/* Jednostka */}
-          <Text style={styles.sectionLabel}>Jednostka</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.unitRow}>
-            {UNITS.slice(0, 6).map((u) => (
+          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Jednostka</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+            {UNITS.map((u) => (
               <Pressable
                 key={u.value}
-                style={[styles.unitBtn, unit === u.value && styles.unitBtnActive]}
+                style={[styles.chip, unit === u.value && styles.chipActive]}
                 onPress={() => setUnit(u.value as Unit)}
               >
-                <Text style={[styles.unitText, unit === u.value && styles.unitTextActive]}>
+                <Text style={[styles.chipText, unit === u.value && styles.chipTextActive]}>
                   {u.label}
                 </Text>
               </Pressable>
@@ -112,30 +179,42 @@ export function ProductConfirmSheet({
           </ScrollView>
 
           {/* Lokalizacja */}
-          <Text style={styles.sectionLabel}>Lokalizacja</Text>
-          <View style={styles.locationRow}>
-            {locations.map((loc) => (
-              <Pressable
-                key={loc.id}
-                style={[styles.locBtn, selectedLocation === loc.id && styles.locBtnActive]}
-                onPress={() => setSelectedLocation(loc.id)}
-              >
-                <Text style={styles.locIcon}>{loc.icon}</Text>
-                <Text style={[styles.locText, selectedLocation === loc.id && styles.locTextActive]}>
-                  {loc.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {locations.length > 0 && (
+            <>
+              <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Lokalizacja</Text>
+              <View style={styles.locationRow}>
+                {locations.map((loc) => (
+                  <Pressable
+                    key={loc.id}
+                    style={[styles.locBtn, selectedLocation === loc.id && styles.locBtnActive]}
+                    onPress={() => setSelectedLocation(loc.id)}
+                  >
+                    <Text style={styles.locIcon}>{loc.icon}</Text>
+                    <Text style={[styles.locText, selectedLocation === loc.id && styles.locTextActive]}>
+                      {loc.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
 
           {/* Data ważności */}
-          <Input
-            label="Data ważności (opcjonalnie)"
-            placeholder="RRRR-MM-DD"
-            value={expiryDate}
-            onChangeText={setExpiryDate}
-            containerStyle={styles.dateInput}
-          />
+          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Data ważności (opcjonalnie)</Text>
+          <Pressable style={styles.dateTrigger} onPress={() => setShowDatePicker(true)}>
+            <Text style={styles.dateIcon}>📅</Text>
+            <Text style={[styles.dateValue, !expiryDate && styles.datePlaceholder]}>
+              {expiryDate ? formatDate(expiryDate) : 'Wybierz datę...'}
+            </Text>
+            {expiryDate && (
+              <Pressable
+                style={styles.dateClear}
+                onPress={(e) => { e.stopPropagation(); setExpiryDate(null); }}
+              >
+                <Text style={styles.dateClearText}>✕</Text>
+              </Pressable>
+            )}
+          </Pressable>
 
           <Button
             title="Dodaj do spiżarni"
@@ -145,7 +224,16 @@ export function ProductConfirmSheet({
             style={styles.addBtn}
           />
         </ScrollView>
+
       </View>
+
+      <DatePickerModal
+        visible={showDatePicker}
+        value={expiryDate}
+        minimumDate={new Date()}
+        onConfirm={(date) => { setExpiryDate(date); setShowDatePicker(false); }}
+        onCancel={() => setShowDatePicker(false)}
+      />
     </View>
   );
 }
@@ -158,7 +246,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
-    maxHeight: '80%',
+    maxHeight: '88%',
   },
   handle: {
     width: 40,
@@ -166,59 +254,127 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  productHeader: { marginBottom: 20, gap: 4 },
+
+  // Nagłówek
+  productHeader: { marginBottom: 4 },
   productName: { fontSize: 20, fontWeight: '700', color: Colors.textPrimary },
-  productBrand: { fontSize: 14, color: Colors.textSecondary },
-  productCategory: { fontSize: 12, color: Colors.textMuted },
-  quantityRow: {
+  productCategory: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
+
+  unknownBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
+    gap: 12,
+    backgroundColor: '#FFF8E1',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
   },
-  qtyBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  unknownIcon: { fontSize: 28 },
+  unknownTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
+  unknownSub: { fontSize: 13, color: Colors.textSecondary },
+
+  // Inputs
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  qtyBtnText: { color: '#fff', fontSize: 22, fontWeight: '700' },
-  qtyContainer: { flex: 1 },
-  qtyInput: { textAlign: 'center', fontSize: 18, fontWeight: '600' },
-  sectionLabel: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginBottom: 8 },
-  unitRow: { marginBottom: 16 },
-  unitBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
+  textInput: {
     backgroundColor: Colors.background,
-    marginRight: 6,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: Colors.textPrimary,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: Colors.border,
+    marginBottom: 4,
   },
-  unitBtnActive: { borderColor: Colors.primary, backgroundColor: '#E8F5E9' },
-  unitText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
-  unitTextActive: { color: Colors.primary },
-  locationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  locBtn: {
+
+  // Chips
+  chipRow: { marginBottom: 4 },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.background,
+    marginRight: 6,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  chipActive: { borderColor: Colors.primary, backgroundColor: '#E8F5E9' },
+  chipIcon: { fontSize: 14 },
+  chipText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
+  chipTextActive: { color: Colors.primary, fontWeight: '700' },
+
+  // Ilość
+  quantityRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  qtyBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qtyBtnText: { color: '#fff', fontSize: 24, fontWeight: '700' },
+  qtyInput: {
+    flex: 1,
+    height: 48,
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+
+  // Lokalizacja
+  locationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  locBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
     backgroundColor: Colors.background,
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
   locBtnActive: { borderColor: Colors.primary, backgroundColor: '#E8F5E9' },
-  locIcon: { fontSize: 16 },
-  locText: { fontSize: 13, color: Colors.textSecondary },
-  locTextActive: { color: Colors.primary, fontWeight: '600' },
-  dateInput: { marginBottom: 20 },
-  addBtn: { marginBottom: 16 },
+  locIcon: { fontSize: 18 },
+  locText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
+  locTextActive: { color: Colors.primary, fontWeight: '700' },
+
+  addBtn: { marginTop: 24, marginBottom: 8 },
+
+  // Data
+  dateTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  dateIcon: { fontSize: 18 },
+  dateValue: { flex: 1, fontSize: 15, color: Colors.textPrimary, fontWeight: '500' },
+  datePlaceholder: { color: Colors.textMuted, fontWeight: '400' },
+  dateClear: { padding: 4 },
+  dateClearText: { fontSize: 13, color: Colors.textMuted },
+
 });

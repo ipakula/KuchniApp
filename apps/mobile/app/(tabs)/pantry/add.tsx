@@ -1,144 +1,333 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { DatePickerModal } from '../../../src/components/ui/DatePickerModal';
 import { usePantry } from '../../../src/hooks/usePantry';
 import { Input } from '../../../src/components/ui/Input';
 import { Button } from '../../../src/components/ui/Button';
 import { Colors } from '../../../src/constants/colors';
 import { UNITS } from '../../../src/constants/units';
-import { Unit } from '../../../src/types/pantry.types';
 import { CATEGORIES } from '../../../src/constants/categories';
+import { Unit } from '../../../src/types/pantry.types';
 
 export default function AddProductScreen() {
   const router = useRouter();
   const { locations, addItem } = usePantry();
+
   const [name, setName] = useState('');
-  const [brand, setBrand] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState<Unit>('szt');
   const [category, setCategory] = useState('');
   const [locationId, setLocationId] = useState(locations[0]?.id || '');
-  const [expiryDate, setExpiryDate] = useState('');
+  const [expiryDate, setExpiryDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Ustaw domyślną lokalizację gdy załaduje się lista
+  const effectiveLocationId = locationId || locations[0]?.id || '';
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const handleAdd = async () => {
     if (!name.trim()) {
-      Alert.alert('Błąd', 'Podaj nazwę produktu');
+      Alert.alert('Wymagane', 'Podaj nazwę produktu');
       return;
     }
     setLoading(true);
     try {
       await addItem({
         name: name.trim(),
-        brand: brand.trim() || undefined,
         quantity: parseFloat(quantity) || 1,
         unit,
         category: category || undefined,
-        location_id: locationId || undefined,
-        expiration_date: expiryDate || undefined,
+        location_id: effectiveLocationId || undefined,
+        expiration_date: expiryDate
+          ? expiryDate.toISOString().split('T')[0]
+          : undefined,
         added_from: 'manual',
       });
       router.back();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Spróbuj ponownie';
+      Alert.alert('Nie udało się dodać produktu', msg);
     } finally {
       setLoading(false);
     }
   };
 
+  const adjustQty = (delta: number) => {
+    const current = parseFloat(quantity) || 1;
+    const next = Math.max(0.5, current + delta);
+    setQuantity(Number.isInteger(next) ? String(next) : next.toFixed(1));
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
       <View style={styles.header}>
-        <Button title="← Wróć" onPress={() => router.back()} variant="ghost" size="sm" />
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backBtnText}>‹</Text>
+        </Pressable>
         <Text style={styles.title}>Dodaj produkt</Text>
-        <View style={{ width: 60 }} />
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content}>
-        <Input label="Nazwa produktu *" placeholder="np. Mleko UHT" value={name} onChangeText={setName} />
-        <Input label="Marka (opcjonalnie)" placeholder="np. Łaciate" value={brand} onChangeText={setBrand} containerStyle={styles.field} />
+      <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Ilość</Text>
-          <View style={styles.quantityRow}>
-            <Pressable style={styles.qtyBtn} onPress={() => setQuantity(String(Math.max(1, parseFloat(quantity) - 1)))}>
-              <Text style={styles.qtyBtnText}>−</Text>
-            </Pressable>
-            <Input value={quantity} onChangeText={setQuantity} keyboardType="decimal-pad" style={styles.qtyInput} containerStyle={styles.qtyContainer} />
-            <Pressable style={styles.qtyBtn} onPress={() => setQuantity(String(parseFloat(quantity) + 1))}>
-              <Text style={styles.qtyBtnText}>+</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Jednostka</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {UNITS.slice(0, 6).map((u) => (
-              <Pressable key={u.value} style={[styles.chip, unit === u.value && styles.chipActive]} onPress={() => setUnit(u.value as Unit)}>
-                <Text style={[styles.chipText, unit === u.value && styles.chipTextActive]}>{u.label}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Kategoria</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {CATEGORIES.slice(0, 8).map((c) => (
-              <Pressable key={c.value} style={[styles.chip, category === c.value && styles.chipActive]} onPress={() => setCategory(c.value)}>
-                <Text style={styles.chipText}>{c.icon} {c.label}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Lokalizacja</Text>
-          <View style={styles.locationRow}>
-            {locations.map((loc) => (
-              <Pressable key={loc.id} style={[styles.locBtn, locationId === loc.id && styles.locBtnActive]} onPress={() => setLocationId(loc.id)}>
-                <Text style={styles.locIcon}>{loc.icon}</Text>
-                <Text style={[styles.locText, locationId === loc.id && styles.locTextActive]}>{loc.name}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
+        {/* Nazwa */}
         <Input
-          label="Data ważności (opcjonalnie)"
-          placeholder="RRRR-MM-DD"
-          value={expiryDate}
-          onChangeText={setExpiryDate}
-          containerStyle={styles.field}
+          label="Nazwa produktu *"
+          placeholder="np. Mleko UHT 3,2%"
+          value={name}
+          onChangeText={setName}
+          returnKeyType="done"
         />
 
-        <Button title="Dodaj do spiżarni" onPress={handleAdd} loading={loading} size="lg" style={styles.addBtn} />
+        {/* Ilość + Jednostka w jednym wierszu */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Ilość i jednostka</Text>
+          <View style={styles.qtyUnitRow}>
+            {/* Stepper */}
+            <Pressable style={styles.qtyBtn} onPress={() => adjustQty(-1)}>
+              <Text style={styles.qtyBtnText}>−</Text>
+            </Pressable>
+            <Input
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="decimal-pad"
+              style={styles.qtyInput}
+              containerStyle={styles.qtyContainer}
+            />
+            <Pressable style={styles.qtyBtn} onPress={() => adjustQty(1)}>
+              <Text style={styles.qtyBtnText}>+</Text>
+            </Pressable>
+
+            {/* Separator */}
+            <View style={styles.separator} />
+
+            {/* Jednostka — poziomo */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.unitScroll}>
+              {UNITS.map((u) => (
+                <Pressable
+                  key={u.value}
+                  style={[styles.unitChip, unit === u.value && styles.unitChipActive]}
+                  onPress={() => setUnit(u.value as Unit)}
+                >
+                  <Text style={[styles.unitChipText, unit === u.value && styles.unitChipTextActive]}>
+                    {u.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+
+        {/* Kategoria — siatka 2 kolumny */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Kategoria</Text>
+          <View style={styles.categoryGrid}>
+            {CATEGORIES.map((c) => (
+              <Pressable
+                key={c.value}
+                style={[styles.categoryBtn, category === c.value && styles.categoryBtnActive]}
+                onPress={() => setCategory(category === c.value ? '' : c.value)}
+              >
+                <Text style={styles.categoryIcon}>{c.icon}</Text>
+                <Text style={[styles.categoryText, category === c.value && styles.categoryTextActive]}>
+                  {c.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* Lokalizacja */}
+        {locations.length > 0 && (
+          <View style={styles.field}>
+            <Text style={styles.label}>Lokalizacja</Text>
+            <View style={styles.locationRow}>
+              {locations.map((loc) => (
+                <Pressable
+                  key={loc.id}
+                  style={[styles.locBtn, effectiveLocationId === loc.id && styles.locBtnActive]}
+                  onPress={() => setLocationId(loc.id)}
+                >
+                  <Text style={styles.locIcon}>{loc.icon}</Text>
+                  <Text style={[styles.locText, effectiveLocationId === loc.id && styles.locTextActive]}>
+                    {loc.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Data ważności — tap otwiera picker */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Data ważności (opcjonalnie)</Text>
+          <Pressable style={styles.dateTrigger} onPress={() => setShowDatePicker(true)}>
+            <Text style={styles.dateIcon}>📅</Text>
+            <Text style={[styles.dateValue, !expiryDate && styles.datePlaceholder]}>
+              {expiryDate ? formatDate(expiryDate) : 'Wybierz datę...'}
+            </Text>
+            {expiryDate && (
+              <Pressable
+                style={styles.dateClear}
+                onPress={(e) => { e.stopPropagation(); setExpiryDate(null); }}
+              >
+                <Text style={styles.dateClearText}>✕</Text>
+              </Pressable>
+            )}
+          </Pressable>
+        </View>
+
+        <Button
+          title="Dodaj do spiżarni"
+          onPress={handleAdd}
+          loading={loading}
+          size="lg"
+          style={styles.submitBtn}
+        />
       </ScrollView>
+
+      <DatePickerModal
+        visible={showDatePicker}
+        value={expiryDate}
+        minimumDate={new Date()}
+        onConfirm={(date) => { setExpiryDate(date); setShowDatePicker(false); }}
+        onCancel={() => setShowDatePicker(false)}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8 },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 12,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backBtnText: { fontSize: 30, color: Colors.primary, lineHeight: 34 },
   title: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary },
-  content: { flex: 1, padding: 16 },
-  field: { marginTop: 16 },
-  label: { fontSize: 14, fontWeight: '500', color: Colors.textPrimary, marginBottom: 8 },
-  quantityRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  qtyBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+
+  scroll: { flex: 1, padding: 16 },
+  field: { marginTop: 20 },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+
+  // Ilość + jednostka
+  qtyUnitRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  qtyBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   qtyBtnText: { color: '#fff', fontSize: 22, fontWeight: '700' },
-  qtyContainer: { flex: 1 },
-  qtyInput: { textAlign: 'center', fontSize: 18, fontWeight: '600' },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: Colors.surface, marginRight: 6, borderWidth: 1.5, borderColor: Colors.border },
-  chipActive: { borderColor: Colors.primary, backgroundColor: '#E8F5E9' },
-  chipText: { fontSize: 13, color: Colors.textSecondary },
-  chipTextActive: { color: Colors.primary, fontWeight: '600' },
+  qtyContainer: { width: 64 },
+  qtyInput: { textAlign: 'center', fontSize: 17, fontWeight: '700' },
+  separator: { width: 1, height: 32, backgroundColor: Colors.border, marginHorizontal: 4 },
+  unitScroll: { flex: 1 },
+  unitChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.surface,
+    marginRight: 6,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unitChipActive: { borderColor: Colors.primary, backgroundColor: '#E8F5E9' },
+  unitChipText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
+  unitChipTextActive: { color: Colors.primary, fontWeight: '700' },
+
+  // Kategoria grid
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  categoryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    width: '47%',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  categoryBtnActive: { borderColor: Colors.primary, backgroundColor: '#E8F5E9' },
+  categoryIcon: { fontSize: 18 },
+  categoryText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500', flex: 1 },
+  categoryTextActive: { color: Colors.primary, fontWeight: '700' },
+
+  // Lokalizacja
   locationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  locBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.border },
+  locBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
   locBtnActive: { borderColor: Colors.primary, backgroundColor: '#E8F5E9' },
-  locIcon: { fontSize: 16 },
-  locText: { fontSize: 13, color: Colors.textSecondary },
-  locTextActive: { color: Colors.primary, fontWeight: '600' },
-  addBtn: { marginTop: 24, marginBottom: 32 },
+  locIcon: { fontSize: 18 },
+  locText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
+  locTextActive: { color: Colors.primary, fontWeight: '700' },
+
+  // Data
+  dateTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  dateIcon: { fontSize: 18 },
+  dateValue: { flex: 1, fontSize: 15, color: Colors.textPrimary, fontWeight: '500' },
+  datePlaceholder: { color: Colors.textMuted, fontWeight: '400' },
+  dateClear: { padding: 4 },
+  dateClearText: { fontSize: 13, color: Colors.textMuted },
+
+  submitBtn: { marginTop: 32, marginBottom: 40 },
 });

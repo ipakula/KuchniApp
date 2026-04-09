@@ -5,13 +5,10 @@ export function usePantry() {
   const store = usePantryStore();
 
   useEffect(() => {
-    // Odświeżaj jeśli dane starsze niż 5 minut
-    const fiveMin = 5 * 60 * 1000;
-    const shouldRefresh = !store.lastSync || Date.now() - store.lastSync > fiveMin;
-    if (shouldRefresh) {
-      store.fetchItems();
-      store.fetchStats();
-    }
+    // Zawsze odświeżaj przy montowaniu — eliminuje problem starego cache z AsyncStorage
+    store.fetchItems();
+    store.fetchStats();
+    store.fetchLocations();
   }, []);
 
   return {

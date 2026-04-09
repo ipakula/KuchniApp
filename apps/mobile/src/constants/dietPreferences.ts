@@ -1,9 +1,9 @@
 export const DIET_PREFERENCES = [
-  { value: 'none', label: 'Bez ograniczeń' },
-  { value: 'vegetarian', label: 'Wegetariańska' },
-  { value: 'vegan', label: 'Wegańska' },
-  { value: 'gluten_free', label: 'Bezglutenowa' },
-  { value: 'lactose_free', label: 'Bez laktozy' },
+  { value: 'none', label: 'Bez ograniczeń', icon: '🍽️', description: 'Brak specjalnych wymagań' },
+  { value: 'vegetarian', label: 'Wegetariańska', icon: '🥦', description: 'Bez mięsa i ryb' },
+  { value: 'vegan', label: 'Wegańska', icon: '🌱', description: 'Bez produktów odzwierzęcych' },
+  { value: 'gluten_free', label: 'Bezglutenowa', icon: '🌾', description: 'Bez pszenicy, żyta, jęczmienia' },
+  { value: 'lactose_free', label: 'Bez laktozy', icon: '🥛', description: 'Bez nabiału z laktozą' },
 ] as const;
 
 export const KITCHEN_EQUIPMENT = [

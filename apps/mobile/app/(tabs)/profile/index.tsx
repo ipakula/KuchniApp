@@ -67,10 +67,10 @@ export default function ProfileScreen() {
         {/* Menu */}
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionLabel}>Ustawienia</Text>
-          <MenuItem icon="📍" label="Lokalizacje spiżarni" onPress={() => {}} />
-          <MenuItem icon="🛒" label="Bazowe produkty" onPress={() => {}} />
-          <MenuItem icon="🔔" label="Powiadomienia" onPress={() => {}} />
-          <MenuItem icon="👨‍👩‍👧‍👦" label="Profil domowników" onPress={() => {}} />
+          <MenuItem icon="📍" label="Lokalizacje spiżarni" onPress={() => router.push('/(tabs)/profile/locations')} />
+          <MenuItem icon="🛒" label="Bazowe produkty" onPress={() => router.push('/(tabs)/profile/basic-products')} />
+          <MenuItem icon="🔔" label="Powiadomienia" onPress={() => router.push('/(tabs)/profile/notifications-settings')} />
+          <MenuItem icon="👨‍👩‍👧‍👦" label="Profil domowników" onPress={() => router.push('/(tabs)/profile/household')} />
         </View>
 
         <View style={styles.menuSection}>

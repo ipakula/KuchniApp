@@ -1,12 +1,17 @@
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../src/constants/colors';
 
 function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
-  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.6 }}>{icon}</Text>;
+  return (
+    <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{icon}</Text>
+  );
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -16,8 +21,10 @@ export default function TabsLayout() {
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: Colors.border,
-          paddingBottom: 4,
-          height: 60,
+          backgroundColor: Colors.surface,
+          height: 56 + insets.bottom,
+          paddingBottom: insets.bottom,
+          paddingTop: 6,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
@@ -50,11 +57,11 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => <TabIcon icon="🍽️" focused={focused} />,
         }}
       />
+      {/* Profil dostępny tylko przez header avatara, ukryty z tab baru */}
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profil',
-          tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} />,
+          href: null,
         }}
       />
     </Tabs>

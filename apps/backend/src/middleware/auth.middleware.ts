@@ -3,6 +3,7 @@ import admin from 'firebase-admin';
 import { AuthRequest } from '../types';
 import { query } from '../db/connection';
 import { sendError } from '../utils/response';
+import { createUser } from '../services/users.service';
 
 export const authMiddleware = async (
   req: AuthRequest,
@@ -26,12 +27,17 @@ export const authMiddleware = async (
       [decoded.uid]
     );
 
-    if (!rows[0]) {
-      sendError(res, 'Użytkownik nie znaleziony. Zarejestruj się najpierw.', 401);
-      return;
+    if (rows[0]) {
+      req.userId = rows[0].id;
+    } else {
+      // Użytkownik zalogowany przez Firebase ale nie ma jeszcze rekordu w DB.
+      // Tworzymy automatycznie — eliminuje problem chicken-and-egg z /register.
+      const email = decoded.email || `${decoded.uid}@unknown.com`;
+      const displayName = decoded.name || undefined;
+      const newUser = await createUser(decoded.uid, email, displayName);
+      req.userId = newUser.id;
     }
 
-    req.userId = rows[0].id;
     next();
   } catch (err) {
     sendError(res, 'Nieprawidłowy lub wygasły token', 401);

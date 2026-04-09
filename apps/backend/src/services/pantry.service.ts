@@ -74,16 +74,15 @@ export async function addPantryItem(
 ): Promise<PantryItem> {
   const { rows } = await query(
     `INSERT INTO pantry_items
-       (user_id, product_id, location_id, name, brand, barcode, category,
+       (user_id, product_id, location_id, name, barcode, category,
         quantity, unit, status, expiration_date, days_after_open, notes, added_from)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING *`,
     [
       userId,
       data.product_id || null,
       data.location_id || null,
       data.name,
-      data.brand || null,
       data.barcode || null,
       data.category || null,
       data.quantity || 1,
@@ -117,7 +116,6 @@ export async function updatePantryItem(
 ): Promise<PantryItem | null> {
   const fields = Object.entries({
     name: data.name,
-    brand: data.brand,
     quantity: data.quantity,
     unit: data.unit,
     status: data.status,
@@ -135,7 +133,6 @@ export async function updatePantryItem(
 
   const values = Object.entries({
     name: data.name,
-    brand: data.brand,
     quantity: data.quantity,
     unit: data.unit,
     status: data.status,

@@ -8,7 +8,6 @@ export interface PantryItem {
   location_id?: string;
   location_name?: string;
   name: string;
-  brand?: string;
   barcode?: string;
   category?: string;
   quantity: number;
@@ -43,7 +42,6 @@ export interface AddPantryItemDTO {
   product_id?: string;
   location_id?: string;
   name: string;
-  brand?: string;
   barcode?: string;
   category?: string;
   quantity: number;

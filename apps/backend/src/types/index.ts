@@ -39,7 +39,6 @@ export interface PantryItem {
   product_id?: string;
   location_id?: string;
   name: string;
-  brand?: string;
   barcode?: string;
   category?: string;
   quantity: number;

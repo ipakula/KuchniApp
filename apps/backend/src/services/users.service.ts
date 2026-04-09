@@ -108,10 +108,58 @@ export async function getLocations(userId: string) {
 
 export async function getBasicProducts(userId: string) {
   const { rows } = await query(
-    'SELECT * FROM user_basic_products WHERE user_id = $1 AND is_active = true ORDER BY name',
+    'SELECT * FROM user_basic_products WHERE user_id = $1 ORDER BY name',
     [userId]
   );
   return rows;
+}
+
+export async function createLocation(userId: string, name: string, icon: string) {
+  const { rows } = await query(
+    `INSERT INTO pantry_locations (user_id, name, icon, sort_order, is_default)
+     VALUES ($1, $2, $3, (SELECT COALESCE(MAX(sort_order),0)+1 FROM pantry_locations WHERE user_id=$1), false)
+     RETURNING *`,
+    [userId, name, icon]
+  );
+  return rows[0];
+}
+
+export async function deleteLocation(userId: string, locationId: string): Promise<boolean> {
+  const { rowCount } = await query(
+    'DELETE FROM pantry_locations WHERE id = $1 AND user_id = $2 AND is_default = false',
+    [locationId, userId]
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+export async function createBasicProduct(userId: string, name: string, unit: string, minQuantity: number) {
+  const { rows } = await query(
+    `INSERT INTO user_basic_products (user_id, name, unit, min_quantity)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [userId, name, unit, minQuantity]
+  );
+  return rows[0];
+}
+
+export async function updateBasicProduct(userId: string, id: string, data: { is_active?: boolean; min_quantity?: number }) {
+  const { rows } = await query(
+    `UPDATE user_basic_products
+     SET is_active = COALESCE($3, is_active),
+         min_quantity = COALESCE($4, min_quantity)
+     WHERE id = $1 AND user_id = $2
+     RETURNING *`,
+    [id, userId, data.is_active ?? null, data.min_quantity ?? null]
+  );
+  return rows[0] || null;
+}
+
+export async function deleteBasicProduct(userId: string, id: string): Promise<boolean> {
+  const { rowCount } = await query(
+    'DELETE FROM user_basic_products WHERE id = $1 AND user_id = $2',
+    [id, userId]
+  );
+  return (rowCount ?? 0) > 0;
 }
 
 export async function savePushToken(userId: string, token: string, platform?: string): Promise<void> {

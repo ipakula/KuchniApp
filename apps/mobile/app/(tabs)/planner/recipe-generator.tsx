@@ -52,8 +52,10 @@ export default function RecipeGeneratorScreen() {
         // Pokaż przepis
         router.push(`/(tabs)/planner/recipe/${recipe.id}`);
       }
-    } catch (err) {
-      Alert.alert('Błąd', 'Nie udało się wygenerować przepisu. Spróbuj ponownie.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Nieznany błąd';
+      console.error('[RecipeGenerator] Błąd:', JSON.stringify(err?.response?.data), err?.message);
+      Alert.alert('Błąd generowania', msg);
     } finally {
       setLoading(false);
     }
