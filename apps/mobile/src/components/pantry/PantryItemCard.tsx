@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { PantryItem } from '../../types/pantry.types';
 import { ExpirationBadge } from './ExpirationBadge';
 import { getCategoryIcon, formatQuantity } from '../../utils/format';
+import { getDaysUntilExpiry } from '../../utils/date';
 import { Colors, Shadows } from '../../constants/colors';
 
 interface PantryItemCardProps {
@@ -12,23 +13,34 @@ interface PantryItemCardProps {
 
 export function PantryItemCard({ item, onPress }: PantryItemCardProps) {
   const effectiveDate = item.effective_expiry || item.expiration_date;
+  const isOpened = item.status === 'opened';
+
+  // Only show badge if expiring within 7 days (or already expired)
+  const daysLeft = getDaysUntilExpiry(effectiveDate);
+  const showBadge = effectiveDate && daysLeft !== null && daysLeft <= 7;
 
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       onPress={() => onPress(item)}
     >
-      <View style={styles.iconWrap}>
+      <View style={[styles.iconWrap, isOpened && styles.iconWrapOpened]}>
         <Text style={styles.icon}>{getCategoryIcon(item.category)}</Text>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+          {isOpened && (
+            <View style={styles.openedPill}>
+              <Text style={styles.openedPillText}>otwarte</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.meta}>
-          {item.location_name || 'Spiżarnia'} • {formatQuantity(item.quantity, item.unit)}
-          {item.status === 'opened' ? ' • Otwarte' : ''}
+          {item.location_name || 'Spiżarnia'} · {formatQuantity(item.quantity, item.unit)}
         </Text>
-        {effectiveDate && <ExpirationBadge expirationDate={effectiveDate} />}
+        {showBadge && <ExpirationBadge expirationDate={effectiveDate!} />}
       </View>
 
       <Text style={styles.arrow}>›</Text>
@@ -56,9 +68,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconWrapOpened: {
+    backgroundColor: '#FFF8E1',
+  },
   icon: { fontSize: 24 },
   content: { flex: 1, gap: 3 },
-  name: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  name: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, flex: 1 },
+  openedPill: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  openedPillText: { fontSize: 10, fontWeight: '700', color: Colors.accent },
   meta: { fontSize: 12, color: Colors.textSecondary },
   arrow: { fontSize: 20, color: Colors.textMuted },
 });

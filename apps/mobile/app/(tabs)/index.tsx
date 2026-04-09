@@ -84,6 +84,7 @@ export default function DashboardScreen() {
         <TodayMealsWidget
           entries={todayEntries}
           onPress={() => router.push('/(tabs)/planner')}
+          onAddMeal={() => router.push('/(tabs)/planner/recipe-generator')}
         />
 
         {/* Szybkie akcje */}

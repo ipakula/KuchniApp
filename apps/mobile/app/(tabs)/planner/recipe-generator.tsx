@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { usePantry } from '../../../src/hooks/usePantry';
@@ -63,6 +63,17 @@ export default function RecipeGeneratorScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Loading overlay */}
+      <Modal visible={loading} transparent animationType="fade">
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loadingTitle}>Generuję przepis AI...</Text>
+            <Text style={styles.loadingSubtitle}>To może potrwać kilka sekund</Text>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.header}>
         <Button title="← Wróć" onPress={() => router.back()} variant="ghost" size="sm" />
         <Text style={styles.title}>Generator Przepisów AI</Text>
@@ -202,4 +213,27 @@ const styles = StyleSheet.create({
   },
   pantryItems: { fontSize: 13, color: Colors.textSecondary, lineHeight: 20 },
   generateBtn: { marginTop: 24, marginBottom: 32 },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    gap: 12,
+    width: 260,
+    ...{
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+  },
+  loadingTitle: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary, textAlign: 'center' },
+  loadingSubtitle: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center' },
 });

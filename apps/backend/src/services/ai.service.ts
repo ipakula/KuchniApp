@@ -125,32 +125,73 @@ Odpowiedz TYLKO w formacie JSON: { "category": "nazwa kategorii" }`;
 // ============================================================
 // Sugestie zakupów
 // ============================================================
+export interface ShoppingSuggestion {
+  name: string;
+  reason: 'low_stock' | 'missing_basic' | 'meal_plan' | 'ai';
+  category?: string;
+}
+
 export async function generateShoppingSuggestions(
   lowStockItems: string[],
   missingBasicItems: string[],
-  upcomingMeals: string[]
-): Promise<string[]> {
-  const prompt = `Jesteś asystentem kuchennym. Na podstawie poniższych danych zasugeruj produkty do kupienia.
+  mealPlanMissing: string[]
+): Promise<ShoppingSuggestion[]> {
+  // Build deterministic suggestions first (no AI needed for these)
+  const deterministic: ShoppingSuggestion[] = [];
+  const seen = new Set<string>();
 
-Produkty o niskim stanie: ${lowStockItems.join(', ') || 'brak'}
-Brakujące produkty podstawowe: ${missingBasicItems.join(', ') || 'brak'}
-Planowane posiłki w tym tygodniu: ${upcomingMeals.join(', ') || 'brak'}
+  for (const name of mealPlanMissing) {
+    const key = name.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); deterministic.push({ name, reason: 'meal_plan' }); }
+  }
+  for (const nameWithQty of lowStockItems) {
+    // strip "(qty unit)" suffix for dedup
+    const name = nameWithQty.replace(/\s*\(.*\)$/, '').trim();
+    const key = name.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); deterministic.push({ name, reason: 'low_stock' }); }
+  }
+  for (const name of missingBasicItems) {
+    const key = name.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); deterministic.push({ name, reason: 'missing_basic' }); }
+  }
 
-Odpowiedz TYLKO w formacie JSON: { "suggestions": ["produkt1", "produkt2"] }
-Maksymalnie 10 pozycji, po polsku.`;
+  // Ask AI to fill remaining slots with smart suggestions + categorize all
+  const aiSlots = Math.max(0, 12 - deterministic.length);
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [{ role: 'user', content: prompt }],
-    response_format: { type: 'json_object' },
-    max_tokens: 200,
-  });
+  const prompt = `Jesteś asystentem kuchennym. Masz listę produktów do zasugerowania zakupu oraz opcjonalnie wolne miejsca na dodatkowe propozycje.
 
-  const content = response.choices[0].message.content;
-  if (!content) return [];
+Produkty do zakupu (już określone):
+${deterministic.length > 0 ? deterministic.map((s) => `- ${s.name} (powód: ${s.reason === 'meal_plan' ? 'potrzebny do przepisu' : s.reason === 'low_stock' ? 'niski stan' : 'brakujący podstawowy'})`).join('\n') : 'brak'}
 
-  const parsed = JSON.parse(content);
-  return parsed.suggestions || [];
+${aiSlots > 0 ? `Dodaj maksymalnie ${aiSlots} własnych propozycji uzupełniających spiżarnię.` : 'Nie dodawaj własnych propozycji.'}
+
+Dla każdego produktu (zarówno podanych jak i swoich propozycji) przypisz kategorię.
+
+Odpowiedz TYLKO w formacie JSON:
+{
+  "items": [
+    { "name": "nazwa produktu", "reason": "meal_plan|low_stock|missing_basic|ai", "category": "nabiał|mięso|warzywa|owoce|pieczywo|makarony i ryż|płatki i zbożowe|sosy i przyprawy|słodycze|przekąski|napoje|mrożonki|konserwy|jaja|inne" }
+  ]
+}
+
+Maksymalnie 12 pozycji łącznie. Odpowiedz po polsku.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 400,
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) return deterministic;
+
+    const parsed = JSON.parse(content);
+    return (parsed.items || []) as ShoppingSuggestion[];
+  } catch {
+    return deterministic;
+  }
 }
 
 // ============================================================

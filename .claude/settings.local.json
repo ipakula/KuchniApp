@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ':*)",
+      "Bash(node -e \"const p = require\\('d:/Projects/KuchniApp/apps/mobile/node_modules/expo/package.json'\\); console.log\\(JSON.stringify\\(p.dependencies?.metro || p.peerDependencies?.metro || 'not found'\\)\\)\")",
+      "Bash(node -e \"const p = require\\('d:/Projects/KuchniApp/apps/mobile/node_modules/@expo/metro-config/package.json'\\); console.log\\(JSON.stringify\\(p.peerDependencies\\)\\)\")",
+      "Bash(node -e \"const p = require\\('d:/Projects/KuchniApp/apps/mobile/node_modules/metro/package.json'\\); console.log\\('local metro:', p.version\\)\")",
+      "Bash(node -e \"const p = require\\('d:/Projects/KuchniApp/apps/mobile/node_modules/expo/package.json'\\); const mc = p.dependencies['@expo/metro-config']; console.log\\('@expo/metro-config needed:', mc\\)\")"
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,6 +18,7 @@ import { Colors } from '../../../src/constants/colors';
 import { UNITS } from '../../../src/constants/units';
 import { CATEGORIES } from '../../../src/constants/categories';
 import { Unit } from '../../../src/types/pantry.types';
+import { searchProducts, ProductSuggestion } from '../../../src/api/products.api';
 
 export default function AddProductScreen() {
   const router = useRouter();
@@ -30,9 +32,39 @@ export default function AddProductScreen() {
   const [expiryDate, setExpiryDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<ProductSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Ustaw domyślną lokalizację gdy załaduje się lista
   const effectiveLocationId = locationId || locations[0]?.id || '';
+
+  const handleNameChange = (text: string) => {
+    setName(text);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    if (text.length >= 2) {
+      searchTimeout.current = setTimeout(async () => {
+        try {
+          const results = await searchProducts(text);
+          setSuggestions(results);
+          setShowSuggestions(results.length > 0);
+        } catch {
+          // ignore search errors silently
+        }
+      }, 300);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectSuggestion = (s: ProductSuggestion) => {
+    setName(s.name);
+    if (s.category) setCategory(s.category);
+    if (s.default_unit) setUnit(s.default_unit as Unit);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
 
   const formatDate = (d: Date) =>
     d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -83,14 +115,35 @@ export default function AddProductScreen() {
 
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        {/* Nazwa */}
-        <Input
-          label="Nazwa produktu *"
-          placeholder="np. Mleko UHT 3,2%"
-          value={name}
-          onChangeText={setName}
-          returnKeyType="done"
-        />
+        {/* Nazwa z autocomplete */}
+        <View style={styles.nameWrapper}>
+          <Input
+            label="Nazwa produktu *"
+            placeholder="np. Mleko UHT 3,2%"
+            value={name}
+            onChangeText={handleNameChange}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            returnKeyType="done"
+          />
+          {showSuggestions && (
+            <View style={styles.suggestionDropdown}>
+              <FlatList
+                data={suggestions}
+                keyExtractor={(s) => s.id}
+                keyboardShouldPersistTaps="handled"
+                scrollEnabled={suggestions.length > 4}
+                style={{ maxHeight: 200 }}
+                renderItem={({ item: s }) => (
+                  <Pressable style={styles.suggestionItem} onPress={() => handleSelectSuggestion(s)}>
+                    <Text style={styles.suggestionName}>{s.name}</Text>
+                    {s.brand ? <Text style={styles.suggestionBrand}>{s.brand}</Text> : null}
+                  </Pressable>
+                )}
+                ItemSeparatorComponent={() => <View style={styles.suggestionSep} />}
+              />
+            </View>
+          )}
+        </View>
 
         {/* Ilość + Jednostka w jednym wierszu */}
         <View style={styles.field}>
@@ -330,4 +383,27 @@ const styles = StyleSheet.create({
   dateClearText: { fontSize: 13, color: Colors.textMuted },
 
   submitBtn: { marginTop: 32, marginBottom: 40 },
+
+  // Autocomplete
+  nameWrapper: { zIndex: 10 },
+  suggestionDropdown: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    marginTop: 4,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  suggestionItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  suggestionName: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
+  suggestionBrand: { fontSize: 12, color: Colors.textSecondary, marginTop: 1 },
+  suggestionSep: { height: 1, backgroundColor: Colors.border },
 });

@@ -130,7 +130,7 @@ export function ProductConfirmSheet({
           <Text style={[styles.sectionLabel, { marginTop: 16 }]}>
             Kategoria{!isUnknown && category ? ` · ${CATEGORIES.find(c => c.value === category)?.icon}` : ''}
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+          <View style={styles.categoryWrap}>
             {CATEGORIES.map((c) => (
               <Pressable
                 key={c.value}
@@ -143,7 +143,7 @@ export function ProductConfirmSheet({
                 </Text>
               </Pressable>
             ))}
-          </ScrollView>
+          </View>
 
           {/* Ilość */}
           <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Ilość</Text>
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   },
 
   // Chips
-  chipRow: { marginBottom: 4 },
+  categoryWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

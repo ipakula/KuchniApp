@@ -71,29 +71,30 @@ export const usePantryStore = create<PantryStore>()(
         }));
       },
 
+      // API first, then remove from state — prevents ghost deletes on network failure
       removeItem: async (id) => {
-        set((s) => ({ items: s.items.filter((i) => i.id !== id) }));
         await pantryApi.deletePantryItem(id);
+        set((s) => ({ items: s.items.filter((i) => i.id !== id) }));
       },
 
       consumeItem: async (id) => {
-        set((s) => ({ items: s.items.filter((i) => i.id !== id) }));
         await pantryApi.consumeItem(id);
+        set((s) => ({ items: s.items.filter((i) => i.id !== id) }));
       },
 
       openItem: async (id) => {
         const today = new Date().toISOString().split('T')[0];
+        await pantryApi.openItem(id);
         set((s) => ({
           items: s.items.map((i) =>
             i.id === id ? { ...i, status: 'opened', opened_date: today } : i
           ),
         }));
-        await pantryApi.openItem(id);
       },
 
       discardItem: async (id) => {
-        set((s) => ({ items: s.items.filter((i) => i.id !== id) }));
         await pantryApi.discardItem(id);
+        set((s) => ({ items: s.items.filter((i) => i.id !== id) }));
       },
 
       getExpiringItems: () => {

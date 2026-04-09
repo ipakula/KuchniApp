@@ -8,24 +8,56 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  SectionList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShoppingList } from '../../src/hooks/useShoppingList';
 import { ShoppingItemRow } from '../../src/components/shopping/ShoppingItem';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { Colors, Shadows } from '../../src/constants/colors';
-import { getShoppingSuggestions } from '../../src/api/ai.api';
+import { getShoppingSuggestions, ShoppingSuggestion, SuggestionReason } from '../../src/api/ai.api';
+import { ShoppingItem } from '../../src/types/shopping.types';
+
+const REASON_LABELS: Record<SuggestionReason, { label: string; color: string }> = {
+  meal_plan: { label: '🍽️ przepis', color: '#E3F2FD' },
+  low_stock: { label: '📉 kończy się', color: '#FFF8E1' },
+  missing_basic: { label: '🧺 brakujący', color: '#F3E5F5' },
+  ai:          { label: '✨ AI', color: '#E8F5E9' },
+};
+
+const SOURCE_ICONS: Record<string, string> = {
+  manual: '',
+  basic_products: '🧺',
+  meal_plan: '🍽️',
+  low_stock: '📉',
+  ai_suggestion: '✨',
+};
 
 export default function ShoppingScreen() {
   const { items, loading, fetchItems, addItem, removeItem, checkItem, clearChecked } = useShoppingList();
   const [newItem, setNewItem] = useState('');
   const [adding, setAdding] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<ShoppingSuggestion[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [addingAll, setAddingAll] = useState(false);
 
   const unchecked = items.filter((i) => !i.is_checked);
   const checked = items.filter((i) => i.is_checked);
+
+  // Group unchecked items by category for sectioned display
+  const grouped = React.useMemo(() => {
+    const map: Record<string, ShoppingItem[]> = {};
+    for (const item of unchecked) {
+      const cat = item.category || 'Inne';
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(item);
+    }
+    // Sort: categories with items first, alphabetically
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b, 'pl'))
+      .map(([title, data]) => ({ title, data }));
+  }, [unchecked]);
 
   const handleAdd = async (name = newItem) => {
     const trimmed = name.trim();
@@ -41,9 +73,36 @@ export default function ShoppingScreen() {
     }
   };
 
-  const handleAddSuggestion = async (suggestion: string) => {
-    await handleAdd(suggestion);
-    setSuggestions((prev) => prev.filter((s) => s !== suggestion));
+  const handleAddSuggestion = async (suggestion: ShoppingSuggestion) => {
+    try {
+      await addItem({
+        name: suggestion.name,
+        quantity: 1,
+        unit: 'szt',
+        category: suggestion.category,
+      });
+      setSuggestions((prev) => prev.filter((s) => s.name !== suggestion.name));
+    } catch {
+      Alert.alert('Błąd', 'Nie udało się dodać pozycji.');
+    }
+  };
+
+  const handleAddAll = async () => {
+    if (suggestions.length === 0) return;
+    setAddingAll(true);
+    try {
+      await Promise.all(
+        suggestions.map((s) =>
+          addItem({ name: s.name, quantity: 1, unit: 'szt', category: s.category })
+        )
+      );
+      setSuggestions([]);
+      setShowSuggestions(false);
+    } catch {
+      Alert.alert('Błąd', 'Nie udało się dodać wszystkich pozycji.');
+    } finally {
+      setAddingAll(false);
+    }
   };
 
   const handleLoadSuggestions = async () => {
@@ -51,7 +110,9 @@ export default function ShoppingScreen() {
     setShowSuggestions(true);
     try {
       const result = await getShoppingSuggestions();
-      setSuggestions(result);
+      // Filter out items already on the list
+      const listNames = items.map((i) => i.name.toLowerCase());
+      setSuggestions(result.filter((s) => !listNames.includes(s.name.toLowerCase())));
     } catch {
       Alert.alert('Błąd', 'Nie udało się pobrać propozycji AI. Sprawdź połączenie z serwerem.');
       setShowSuggestions(false);
@@ -101,7 +162,7 @@ export default function ShoppingScreen() {
           <Text style={styles.aiBtnIcon}>✨</Text>
           <View style={styles.aiBtnTextWrap}>
             <Text style={styles.aiBtnTitle}>Propozycje AI</Text>
-            <Text style={styles.aiBtnSub}>Na podstawie stanu spiżarni</Text>
+            <Text style={styles.aiBtnSub}>Na podstawie spiżarni, przepisów i braków</Text>
           </View>
           <Text style={styles.aiBtnArrow}>›</Text>
         </Pressable>
@@ -117,76 +178,158 @@ export default function ShoppingScreen() {
           {loadingSuggestions ? (
             <View style={styles.suggestionsLoading}>
               <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.suggestionsLoadingText}>Analizuję spiżarnię...</Text>
+              <Text style={styles.suggestionsLoadingText}>Analizuję spiżarnię i przepisy...</Text>
             </View>
           ) : suggestions.length === 0 ? (
-            <Text style={styles.suggestionsEmpty}>Brak propozycji — spiżarnia wygląda kompletnie!</Text>
+            <Text style={styles.suggestionsEmpty}>
+              Spiżarnia wygląda kompletnie! Wszystkie propozycje są już na liście.
+            </Text>
           ) : (
-            <View style={styles.suggestionsList}>
-              {suggestions.map((s) => (
-                <Pressable key={s} style={styles.suggestionChip} onPress={() => handleAddSuggestion(s)}>
-                  <Text style={styles.suggestionChipText}>{s}</Text>
-                  <Text style={styles.suggestionChipAdd}>＋</Text>
-                </Pressable>
-              ))}
-            </View>
+            <>
+              {/* Add all button */}
+              <Pressable
+                style={[styles.addAllBtn, addingAll && styles.addAllBtnDisabled]}
+                onPress={handleAddAll}
+                disabled={addingAll}
+              >
+                {addingAll ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.addAllBtnText}>＋ Dodaj wszystkie ({suggestions.length})</Text>
+                )}
+              </Pressable>
+
+              {/* Suggestion chips grouped by reason */}
+              {(['meal_plan', 'low_stock', 'missing_basic', 'ai'] as SuggestionReason[])
+                .map((reason) => {
+                  const group = suggestions.filter((s) => s.reason === reason);
+                  if (group.length === 0) return null;
+                  const meta = REASON_LABELS[reason];
+                  return (
+                    <View key={reason} style={styles.suggestionGroup}>
+                      <View style={[styles.reasonPill, { backgroundColor: meta.color }]}>
+                        <Text style={styles.reasonPillText}>{meta.label}</Text>
+                      </View>
+                      <View style={styles.suggestionChips}>
+                        {group.map((s) => (
+                          <Pressable
+                            key={s.name}
+                            style={styles.suggestionChip}
+                            onPress={() => handleAddSuggestion(s)}
+                          >
+                            <Text style={styles.suggestionChipText}>{s.name}</Text>
+                            <Text style={styles.suggestionChipAdd}>＋</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })}
+            </>
           )}
         </View>
       )}
-
-      {/* Sekcja — do kupienia */}
-      {unchecked.length > 0 && (
-        <Text style={styles.sectionLabel}>Do kupienia ({unchecked.length})</Text>
-      )}
     </View>
   );
-
-  const ListFooter = () =>
-    checked.length > 0 ? (
-      <View>
-        <View style={styles.checkedHeader}>
-          <Text style={styles.sectionLabel}>Kupione ({checked.length})</Text>
-          <Pressable onPress={handleClearChecked}>
-            <Text style={styles.clearBtn}>Wyczyść</Text>
-          </Pressable>
-        </View>
-        {checked.map((item) => (
-          <ShoppingItemRow key={item.id} item={item} onCheck={checkItem} onDelete={removeItem} />
-        ))}
-      </View>
-    ) : null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Lista zakupów</Text>
-        <Text style={styles.subtitle}>{unchecked.length} pozycji</Text>
+        <Text style={styles.subtitle}>{unchecked.length} do kupienia</Text>
       </View>
 
-      <FlatList
-        data={unchecked}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ShoppingItemRow item={item} onCheck={checkItem} onDelete={removeItem} />
-        )}
-        contentContainerStyle={styles.list}
-        onRefresh={fetchItems}
-        refreshing={loading}
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={<ListHeader />}
-        ListFooterComponent={<ListFooter />}
-        ListEmptyComponent={
-          unchecked.length === 0 && !loading ? (
-            <EmptyState
-              icon="🛒"
-              title="Lista jest pusta"
-              description="Dodaj produkty ręcznie lub skorzystaj z propozycji AI na podstawie spiżarni"
-            />
-          ) : null
-        }
-      />
+      {unchecked.length === 0 ? (
+        // No unchecked items — flat list with header + empty state + checked section
+        <FlatList
+          data={checked}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          onRefresh={fetchItems}
+          refreshing={loading}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            <View>
+              <ListHeader />
+              <EmptyState
+                icon="🛒"
+                title="Lista jest pusta"
+                description="Dodaj produkty ręcznie lub skorzystaj z propozycji AI"
+              />
+              {checked.length > 0 && (
+                <View style={styles.checkedHeader}>
+                  <Text style={styles.sectionLabel}>Kupione ({checked.length})</Text>
+                  <Pressable onPress={handleClearChecked}>
+                    <Text style={styles.clearBtn}>Wyczyść</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          }
+          renderItem={({ item }) => (
+            <ShoppingItemRow item={item} onCheck={checkItem} onDelete={removeItem} />
+          )}
+        />
+      ) : (
+        <SectionList
+          sections={grouped}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          onRefresh={fetchItems}
+          refreshing={loading}
+          keyboardShouldPersistTaps="handled"
+          stickySectionHeadersEnabled={false}
+          ListHeaderComponent={<ListHeader />}
+          renderSectionHeader={({ section }) => (
+            grouped.length > 1 ? (
+              <Text style={styles.sectionLabel}>{section.title}</Text>
+            ) : null
+          )}
+          renderItem={({ item }) => (
+            <ShoppingItemRowWithSource item={item} onCheck={checkItem} onDelete={removeItem} />
+          )}
+          ListFooterComponent={
+            checked.length > 0 ? (
+              <View>
+                <View style={styles.checkedHeader}>
+                  <Text style={styles.sectionLabel}>Kupione ({checked.length})</Text>
+                  <Pressable onPress={handleClearChecked}>
+                    <Text style={styles.clearBtn}>Wyczyść</Text>
+                  </Pressable>
+                </View>
+                {checked.map((item) => (
+                  <ShoppingItemRow key={item.id} item={item} onCheck={checkItem} onDelete={removeItem} />
+                ))}
+              </View>
+            ) : null
+          }
+        />
+      )}
     </SafeAreaView>
+  );
+}
+
+// Wrapper that adds source icon to item row
+function ShoppingItemRowWithSource({
+  item,
+  onCheck,
+  onDelete,
+}: {
+  item: ShoppingItem;
+  onCheck: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const icon = SOURCE_ICONS[item.source] || '';
+  return (
+    <View>
+      {icon ? (
+        <View style={styles.sourceIconWrap}>
+          <Text style={styles.sourceIcon}>{icon}</Text>
+        </View>
+      ) : null}
+      <ShoppingItemRow item={item} onCheck={onCheck} onDelete={onDelete} />
+    </View>
   );
 }
 
@@ -258,25 +401,45 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1.5,
     borderColor: Colors.primary + '40',
+    gap: 12,
     ...Shadows.small,
   },
   suggestionsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
   suggestionsTitle: { fontSize: 15, fontWeight: '700', color: Colors.primary },
   suggestionsClose: { fontSize: 13, color: Colors.textSecondary },
   suggestionsLoading: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   suggestionsLoadingText: { fontSize: 14, color: Colors.textSecondary },
   suggestionsEmpty: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', paddingVertical: 8 },
-  suggestionsList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+  // Add all
+  addAllBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  addAllBtnDisabled: { backgroundColor: Colors.textMuted },
+  addAllBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+  // Suggestion groups
+  suggestionGroup: { gap: 6 },
+  reasonPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  reasonPillText: { fontSize: 11, fontWeight: '600', color: Colors.textPrimary },
+  suggestionChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   suggestionChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: '#E8F5E9',
     borderRadius: 20,
@@ -293,15 +456,24 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
-    marginTop: 4,
+    marginBottom: 6,
+    marginTop: 12,
   },
   checkedHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 8,
     marginBottom: 8,
   },
   clearBtn: { fontSize: 13, color: Colors.error, fontWeight: '600' },
+
+  // Source icon overlay
+  sourceIconWrap: {
+    position: 'absolute',
+    top: 6,
+    right: 32,
+    zIndex: 1,
+  },
+  sourceIcon: { fontSize: 12 },
 });

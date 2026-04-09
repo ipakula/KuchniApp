@@ -3,6 +3,7 @@ import { AuthRequest } from '../types';
 import * as aiService from '../services/ai.service';
 import * as pantryService from '../services/pantry.service';
 import * as usersService from '../services/users.service';
+import * as mealPlansService from '../services/meal-plans.service';
 import { sendSuccess, sendError } from '../utils/response';
 
 export async function suggestCategory(req: AuthRequest, res: Response): Promise<void> {
@@ -28,7 +29,7 @@ export async function suggestExpiration(req: AuthRequest, res: Response): Promis
 export async function analyzePantry(req: AuthRequest, res: Response): Promise<void> {
   try {
     const items = await pantryService.getPantryItems(req.userId!);
-    const simplified = items.map((i) => ({
+    const simplified = items.slice(0, 50).map((i) => ({
       name: i.name,
       quantity: i.quantity,
       unit: i.unit,
@@ -41,25 +42,56 @@ export async function analyzePantry(req: AuthRequest, res: Response): Promise<vo
   }
 }
 
+// Unit-aware thresholds for low stock detection
+const LOW_STOCK_THRESHOLDS: Record<string, number> = {
+  szt: 2,
+  opak: 1,
+  g: 200,
+  kg: 0.5,
+  ml: 250,
+  l: 0.5,
+  łyżka: 3,
+  łyżeczka: 3,
+  szklanka: 1,
+  plaster: 3,
+};
+
+function isLowStock(quantity: number, unit: string): boolean {
+  const threshold = LOW_STOCK_THRESHOLDS[unit] ?? 1;
+  return quantity <= threshold;
+}
+
 export async function shoppingSuggestions(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const items = await pantryService.getPantryItems(req.userId!);
-    const basicProducts = await usersService.getBasicProducts(req.userId!);
+    const [items, basicProducts, weekMissingIngredients] = await Promise.all([
+      pantryService.getPantryItems(req.userId!),
+      usersService.getBasicProducts(req.userId!),
+      mealPlansService.getMissingIngredients(req.userId!, new Date()).catch(() => []),
+    ]);
 
+    // Low stock: unit-aware thresholds
     const lowStock = items
-      .filter((i) => i.quantity <= 1)
-      .map((i) => i.name);
+      .filter((i) => isLowStock(i.quantity, i.unit))
+      .map((i) => ({ name: i.name, quantity: i.quantity, unit: i.unit }));
 
-    const pantryNames = items.map((i) => i.name.toLowerCase());
-    const missingBasic = (basicProducts as Array<{ name: string }>)
-      .filter((bp) => !pantryNames.some((pn) => pn.includes(bp.name.toLowerCase())))
-      .map((bp) => bp.name);
+    // Missing basics: exact word boundary match to avoid false positives
+    const pantryNames = items.map((i) => i.name.toLowerCase().trim());
+    const missingBasic = (basicProducts as Array<{ name: string }>).filter((bp) => {
+      const bpLower = bp.name.toLowerCase().trim();
+      return !pantryNames.some(
+        (pn) => pn === bpLower || pn.startsWith(bpLower + ' ') || pn.includes(' ' + bpLower)
+      );
+    }).map((bp) => bp.name);
+
+    // Missing meal plan ingredients (already cross-referenced with pantry by the service)
+    const mealPlanMissing = weekMissingIngredients.map((m) => m.ingredient);
 
     const suggestions = await aiService.generateShoppingSuggestions(
-      lowStock,
+      lowStock.map((i) => `${i.name} (${i.quantity} ${i.unit})`),
       missingBasic,
-      []
+      mealPlanMissing
     );
+
     sendSuccess(res, suggestions);
   } catch {
     sendError(res, 'Błąd generowania sugestii zakupów', 500);

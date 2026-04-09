@@ -4,22 +4,26 @@ import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/colors';
 
 interface QuickActionsProps {
-  onConsume: () => Promise<void>;
+  onConsume: () => void;
   onOpen: () => Promise<void>;
-  onDiscard: () => Promise<void>;
+  onDiscard: () => void;
+  isOpened?: boolean;
 }
 
 interface ActionButtonProps {
   emoji: string;
   label: string;
   color: string;
-  onPress: () => Promise<void>;
+  onPress: () => void | Promise<void>;
+  disabled?: boolean;
+  dimmed?: boolean;
 }
 
-function ActionButton({ emoji, label, color, onPress }: ActionButtonProps) {
+function ActionButton({ emoji, label, color, onPress, disabled, dimmed }: ActionButtonProps) {
   const [loading, setLoading] = React.useState(false);
 
   const handlePress = async () => {
+    if (loading || disabled) return;
     setLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -31,9 +35,14 @@ function ActionButton({ emoji, label, color, onPress }: ActionButtonProps) {
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.btn, { backgroundColor: color }, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.btn,
+        { backgroundColor: color },
+        (dimmed || disabled) && styles.btnDimmed,
+        pressed && !disabled && styles.pressed,
+      ]}
       onPress={handlePress}
-      disabled={loading}
+      disabled={loading || disabled}
     >
       {loading ? (
         <ActivityIndicator color="#fff" size="small" />
@@ -47,12 +56,29 @@ function ActionButton({ emoji, label, color, onPress }: ActionButtonProps) {
   );
 }
 
-export function QuickActions({ onConsume, onOpen, onDiscard }: QuickActionsProps) {
+export function QuickActions({ onConsume, onOpen, onDiscard, isOpened }: QuickActionsProps) {
   return (
     <View style={styles.row}>
-      <ActionButton emoji="✅" label="Skonsumuj" color={Colors.primary} onPress={onConsume} />
-      <ActionButton emoji="📦" label="Otwarto" color={Colors.accent} onPress={onOpen} />
-      <ActionButton emoji="🗑️" label="Wyrzuć" color={Colors.warning} onPress={onDiscard} />
+      <ActionButton
+        emoji="✅"
+        label="Skonsumuj"
+        color={Colors.primary}
+        onPress={onConsume}
+      />
+      <ActionButton
+        emoji={isOpened ? '📦' : '📦'}
+        label={isOpened ? 'Otwarte ✓' : 'Otwarto'}
+        color={Colors.accent}
+        onPress={onOpen}
+        disabled={isOpened}
+        dimmed={isOpened}
+      />
+      <ActionButton
+        emoji="🗑️"
+        label="Wyrzuć"
+        color={Colors.warning}
+        onPress={onDiscard}
+      />
     </View>
   );
 }
@@ -68,6 +94,7 @@ const styles = StyleSheet.create({
     gap: 4,
     minHeight: 60,
   },
+  btnDimmed: { opacity: 0.5 },
   pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
   emoji: { fontSize: 22 },
   label: { color: '#fff', fontSize: 12, fontWeight: '700' },
