@@ -113,9 +113,14 @@ export interface MealPlanEntry {
   servings: number;
   status: MealStatus;
   cooked_at?: Date;
-  // joined
+  // joined from recipes
   recipe_title?: string;
   recipe_description?: string;
+  ingredients?: RecipeIngredient[] | string;
+  instructions?: RecipeInstruction[] | string;
+  prep_time_min?: number;
+  cook_time_min?: number;
+  diet_tags?: string[];
 }
 
 export interface Notification {
