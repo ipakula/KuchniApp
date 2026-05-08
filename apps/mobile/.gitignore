@@ -4,3 +4,6 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# Allow .env for EAS builds (Firebase client keys are public by nature)
+!.env
