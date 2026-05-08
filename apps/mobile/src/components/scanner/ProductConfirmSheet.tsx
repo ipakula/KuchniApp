@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Button } from '../ui/Button';
 import { DatePickerModal } from '../ui/DatePickerModal';
+import { ExpiryScannerButton } from '../ui/ExpiryScanner';
 import { Colors } from '../../constants/colors';
 import { AddPantryItemDTO, Unit } from '../../types/pantry.types';
 import { UNITS } from '../../constants/units';
@@ -201,20 +202,23 @@ export function ProductConfirmSheet({
 
           {/* Data ważności */}
           <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Data ważności (opcjonalnie)</Text>
-          <Pressable style={styles.dateTrigger} onPress={() => setShowDatePicker(true)}>
-            <Text style={styles.dateIcon}>📅</Text>
-            <Text style={[styles.dateValue, !expiryDate && styles.datePlaceholder]}>
-              {expiryDate ? formatDate(expiryDate) : 'Wybierz datę...'}
-            </Text>
-            {expiryDate && (
-              <Pressable
-                style={styles.dateClear}
-                onPress={(e) => { e.stopPropagation(); setExpiryDate(null); }}
-              >
-                <Text style={styles.dateClearText}>✕</Text>
-              </Pressable>
-            )}
-          </Pressable>
+          <View style={styles.dateRow}>
+            <Pressable style={styles.dateTrigger} onPress={() => setShowDatePicker(true)}>
+              <Text style={styles.dateIcon}>📅</Text>
+              <Text style={[styles.dateValue, !expiryDate && styles.datePlaceholder]}>
+                {expiryDate ? formatDate(expiryDate) : 'Wybierz datę...'}
+              </Text>
+              {expiryDate && (
+                <Pressable
+                  style={styles.dateClear}
+                  onPress={(e) => { e.stopPropagation(); setExpiryDate(null); }}
+                >
+                  <Text style={styles.dateClearText}>✕</Text>
+                </Pressable>
+              )}
+            </Pressable>
+            <ExpiryScannerButton onDateFound={(date) => setExpiryDate(date)} />
+          </View>
 
           <Button
             title="Dodaj do spiżarni"
@@ -296,6 +300,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 
+  chipRow: { marginBottom: 4 },
+
   // Chips
   categoryWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
   chip: {
@@ -360,7 +366,9 @@ const styles = StyleSheet.create({
   addBtn: { marginTop: 24, marginBottom: 8 },
 
   // Data
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateTrigger: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,

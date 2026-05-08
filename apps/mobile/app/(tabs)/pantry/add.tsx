@@ -19,6 +19,7 @@ import { UNITS } from '../../../src/constants/units';
 import { CATEGORIES } from '../../../src/constants/categories';
 import { Unit } from '../../../src/types/pantry.types';
 import { searchProducts, ProductSuggestion } from '../../../src/api/products.api';
+import { ExpiryScannerButton } from '../../../src/components/ui/ExpiryScanner';
 
 export default function AddProductScreen() {
   const router = useRouter();
@@ -224,23 +225,26 @@ export default function AddProductScreen() {
           </View>
         )}
 
-        {/* Data ważności — tap otwiera picker */}
+        {/* Data ważności — tap otwiera picker lub skanuj */}
         <View style={styles.field}>
           <Text style={styles.label}>Data ważności (opcjonalnie)</Text>
-          <Pressable style={styles.dateTrigger} onPress={() => setShowDatePicker(true)}>
-            <Text style={styles.dateIcon}>📅</Text>
-            <Text style={[styles.dateValue, !expiryDate && styles.datePlaceholder]}>
-              {expiryDate ? formatDate(expiryDate) : 'Wybierz datę...'}
-            </Text>
-            {expiryDate && (
-              <Pressable
-                style={styles.dateClear}
-                onPress={(e) => { e.stopPropagation(); setExpiryDate(null); }}
-              >
-                <Text style={styles.dateClearText}>✕</Text>
-              </Pressable>
-            )}
-          </Pressable>
+          <View style={styles.dateRow}>
+            <Pressable style={styles.dateTrigger} onPress={() => setShowDatePicker(true)}>
+              <Text style={styles.dateIcon}>📅</Text>
+              <Text style={[styles.dateValue, !expiryDate && styles.datePlaceholder]}>
+                {expiryDate ? formatDate(expiryDate) : 'Wybierz datę...'}
+              </Text>
+              {expiryDate && (
+                <Pressable
+                  style={styles.dateClear}
+                  onPress={(e) => { e.stopPropagation(); setExpiryDate(null); }}
+                >
+                  <Text style={styles.dateClearText}>✕</Text>
+                </Pressable>
+              )}
+            </Pressable>
+            <ExpiryScannerButton onDateFound={(date) => setExpiryDate(date)} />
+          </View>
         </View>
 
         <Button
@@ -365,7 +369,9 @@ const styles = StyleSheet.create({
   locTextActive: { color: Colors.primary, fontWeight: '700' },
 
   // Data
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateTrigger: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,

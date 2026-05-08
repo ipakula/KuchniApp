@@ -5,6 +5,7 @@ const router = Router();
 
 router.post('/suggest-category', aiController.suggestCategory);
 router.post('/suggest-expiration', aiController.suggestExpiration);
+router.post('/extract-expiry', aiController.extractExpiryDate);
 router.get('/analyze-pantry', aiController.analyzePantry);
 router.get('/shopping-suggestions', aiController.shoppingSuggestions);
 

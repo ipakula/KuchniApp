@@ -6,14 +6,16 @@ import { savePushToken } from '../api/auth.api';
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
 });
 
 export function useNotifications() {
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<ReturnType<typeof Notifications.addNotificationReceivedListener>>();
+  const responseListener = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener>>();
 
   useEffect(() => {
     registerForPushNotifications();
@@ -27,12 +29,8 @@ export function useNotifications() {
     });
 
     return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, []);
 }
@@ -50,7 +48,6 @@ async function registerForPushNotifications() {
     if (finalStatus !== 'granted') return;
 
     const token = await Notifications.getExpoPushTokenAsync();
-
     await savePushToken(token.data, Platform.OS);
   } catch (err) {
     console.warn('[Notifications] Błąd rejestracji:', err);

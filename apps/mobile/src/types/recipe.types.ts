@@ -56,4 +56,5 @@ export interface GenerateRecipeDTO {
   diet?: string;
   preferences?: string;
   equipment?: string[];
+  custom_tags?: string[];
 }

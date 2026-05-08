@@ -16,6 +16,16 @@ export const generateRecipe = async (dto: GenerateRecipeDTO): Promise<Recipe> =>
   return data.data;
 };
 
+export const updateRecipeTags = async (id: string, tags: string[]): Promise<Recipe> => {
+  const { data } = await apiClient.patch(`/recipes/${id}/tags`, { tags });
+  return data.data;
+};
+
+export const importRecipeFromUrl = async (url: string): Promise<Recipe> => {
+  const { data } = await apiClient.post('/recipes/import-url', { url });
+  return data.data;
+};
+
 export const deleteRecipe = async (id: string): Promise<void> => {
   await apiClient.delete(`/recipes/${id}`);
 };

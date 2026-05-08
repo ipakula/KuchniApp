@@ -31,21 +31,38 @@ export async function generateRecipe(req: AuthRequest, res: Response): Promise<v
       diet,
       preferences,
       equipment,
+      custom_tags,
     } = req.body;
 
-    const recipe = await recipesService.generateAndSaveRecipe(req.userId!, {
-      pantryIngredients: pantry_items || [],
-      mealType: meal_type || 'obiad',
-      servings: servings || 2,
-      diet,
-      preferences,
-      equipment,
-    });
+    const recipe = await recipesService.generateAndSaveRecipe(
+      req.userId!,
+      {
+        pantryIngredients: pantry_items || [],
+        mealType: meal_type || 'obiad',
+        servings: servings || 2,
+        diet,
+        preferences,
+        equipment,
+      },
+      Array.isArray(custom_tags) ? custom_tags : []
+    );
 
     sendSuccess(res, recipe, 201);
   } catch (err) {
     console.error('[RecipeController] Błąd generowania:', err);
     sendError(res, 'Błąd generowania przepisu AI', 500);
+  }
+}
+
+export async function updateRecipeTags(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { tags } = req.body;
+    if (!Array.isArray(tags)) { sendError(res, 'Nieprawidłowe tagi', 400); return; }
+    const recipe = await recipesService.updateRecipeTags(req.userId!, req.params.id, tags);
+    if (!recipe) { sendError(res, 'Przepis nie znaleziony', 404); return; }
+    sendSuccess(res, recipe);
+  } catch {
+    sendError(res, 'Błąd aktualizacji tagów', 500);
   }
 }
 
@@ -55,6 +72,18 @@ export async function saveRecipe(req: AuthRequest, res: Response): Promise<void>
     sendSuccess(res, recipe, 201);
   } catch {
     sendError(res, 'Błąd zapisywania przepisu', 500);
+  }
+}
+
+export async function importRecipeFromUrl(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { url } = req.body;
+    if (!url || typeof url !== 'string') { sendError(res, 'Brak lub nieprawidłowy URL', 400); return; }
+    const recipe = await recipesService.importRecipeFromUrl(req.userId!, url);
+    sendSuccess(res, recipe, 201);
+  } catch (err) {
+    console.error('[RecipeController] Błąd importu z URL:', err);
+    sendError(res, 'Nie udało się zaimportować przepisu z podanego URL', 500);
   }
 }
 

@@ -33,6 +33,130 @@ const SOURCE_ICONS: Record<string, string> = {
   ai_suggestion: '✨',
 };
 
+interface ListHeaderProps {
+  newItem: string;
+  setNewItem: (v: string) => void;
+  handleAdd: (name?: string) => void;
+  adding: boolean;
+  showSuggestions: boolean;
+  suggestions: ShoppingSuggestion[];
+  loadingSuggestions: boolean;
+  addingAll: boolean;
+  handleLoadSuggestions: () => void;
+  handleAddSuggestion: (s: ShoppingSuggestion) => void;
+  handleAddAll: () => void;
+  setShowSuggestions: (v: boolean) => void;
+  setSuggestions: (v: ShoppingSuggestion[]) => void;
+}
+
+function ListHeader({
+  newItem, setNewItem, handleAdd, adding,
+  showSuggestions, suggestions, loadingSuggestions, addingAll,
+  handleLoadSuggestions, handleAddSuggestion, handleAddAll,
+  setShowSuggestions, setSuggestions,
+}: ListHeaderProps) {
+  return (
+    <View>
+      {/* Pole dodawania */}
+      <View style={styles.addRow}>
+        <TextInput
+          style={styles.addInput}
+          placeholder="Wpisz produkt i naciśnij +"
+          placeholderTextColor={Colors.textMuted}
+          value={newItem}
+          onChangeText={setNewItem}
+          onSubmitEditing={() => handleAdd()}
+          returnKeyType="done"
+          editable={!adding}
+        />
+        <Pressable
+          style={[styles.addBtn, (!newItem.trim() || adding) && styles.addBtnDisabled]}
+          onPress={() => handleAdd()}
+          disabled={!newItem.trim() || adding}
+        >
+          {adding ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.addBtnText}>＋</Text>
+          )}
+        </Pressable>
+      </View>
+
+      {/* AI propozycje */}
+      {!showSuggestions ? (
+        <Pressable style={styles.aiBtn} onPress={handleLoadSuggestions}>
+          <Text style={styles.aiBtnIcon}>✨</Text>
+          <View style={styles.aiBtnTextWrap}>
+            <Text style={styles.aiBtnTitle}>Propozycje AI</Text>
+            <Text style={styles.aiBtnSub}>Na podstawie spiżarni, przepisów i braków</Text>
+          </View>
+          <Text style={styles.aiBtnArrow}>›</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.suggestionsBox}>
+          <View style={styles.suggestionsHeader}>
+            <Text style={styles.suggestionsTitle}>✨ Propozycje AI</Text>
+            <Pressable onPress={() => { setShowSuggestions(false); setSuggestions([]); }}>
+              <Text style={styles.suggestionsClose}>Ukryj</Text>
+            </Pressable>
+          </View>
+
+          {loadingSuggestions ? (
+            <View style={styles.suggestionsLoading}>
+              <ActivityIndicator color={Colors.primary} />
+              <Text style={styles.suggestionsLoadingText}>Analizuję spiżarnię i przepisy...</Text>
+            </View>
+          ) : suggestions.length === 0 ? (
+            <Text style={styles.suggestionsEmpty}>
+              Spiżarnia wygląda kompletnie! Wszystkie propozycje są już na liście.
+            </Text>
+          ) : (
+            <>
+              <Pressable
+                style={[styles.addAllBtn, addingAll && styles.addAllBtnDisabled]}
+                onPress={handleAddAll}
+                disabled={addingAll}
+              >
+                {addingAll ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.addAllBtnText}>＋ Dodaj wszystkie ({suggestions.length})</Text>
+                )}
+              </Pressable>
+
+              {(['meal_plan', 'low_stock', 'missing_basic', 'ai'] as SuggestionReason[])
+                .map((reason) => {
+                  const group = suggestions.filter((s) => s.reason === reason);
+                  if (group.length === 0) return null;
+                  const meta = REASON_LABELS[reason];
+                  return (
+                    <View key={reason} style={styles.suggestionGroup}>
+                      <View style={[styles.reasonPill, { backgroundColor: meta.color }]}>
+                        <Text style={styles.reasonPillText}>{meta.label}</Text>
+                      </View>
+                      <View style={styles.suggestionChips}>
+                        {group.map((s) => (
+                          <Pressable
+                            key={s.name}
+                            style={styles.suggestionChip}
+                            onPress={() => handleAddSuggestion(s)}
+                          >
+                            <Text style={styles.suggestionChipText}>{s.name}</Text>
+                            <Text style={styles.suggestionChipAdd}>＋</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })}
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function ShoppingScreen() {
   const { items, loading, fetchItems, addItem, removeItem, checkItem, clearChecked } = useShoppingList();
   const [newItem, setNewItem] = useState('');
@@ -129,108 +253,12 @@ export default function ShoppingScreen() {
     ]);
   };
 
-  const ListHeader = () => (
-    <View>
-      {/* Pole dodawania */}
-      <View style={styles.addRow}>
-        <TextInput
-          style={styles.addInput}
-          placeholder="Wpisz produkt i naciśnij +"
-          placeholderTextColor={Colors.textMuted}
-          value={newItem}
-          onChangeText={setNewItem}
-          onSubmitEditing={() => handleAdd()}
-          returnKeyType="done"
-          editable={!adding}
-        />
-        <Pressable
-          style={[styles.addBtn, (!newItem.trim() || adding) && styles.addBtnDisabled]}
-          onPress={() => handleAdd()}
-          disabled={!newItem.trim() || adding}
-        >
-          {adding ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.addBtnText}>＋</Text>
-          )}
-        </Pressable>
-      </View>
-
-      {/* AI propozycje */}
-      {!showSuggestions ? (
-        <Pressable style={styles.aiBtn} onPress={handleLoadSuggestions}>
-          <Text style={styles.aiBtnIcon}>✨</Text>
-          <View style={styles.aiBtnTextWrap}>
-            <Text style={styles.aiBtnTitle}>Propozycje AI</Text>
-            <Text style={styles.aiBtnSub}>Na podstawie spiżarni, przepisów i braków</Text>
-          </View>
-          <Text style={styles.aiBtnArrow}>›</Text>
-        </Pressable>
-      ) : (
-        <View style={styles.suggestionsBox}>
-          <View style={styles.suggestionsHeader}>
-            <Text style={styles.suggestionsTitle}>✨ Propozycje AI</Text>
-            <Pressable onPress={() => { setShowSuggestions(false); setSuggestions([]); }}>
-              <Text style={styles.suggestionsClose}>Ukryj</Text>
-            </Pressable>
-          </View>
-
-          {loadingSuggestions ? (
-            <View style={styles.suggestionsLoading}>
-              <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.suggestionsLoadingText}>Analizuję spiżarnię i przepisy...</Text>
-            </View>
-          ) : suggestions.length === 0 ? (
-            <Text style={styles.suggestionsEmpty}>
-              Spiżarnia wygląda kompletnie! Wszystkie propozycje są już na liście.
-            </Text>
-          ) : (
-            <>
-              {/* Add all button */}
-              <Pressable
-                style={[styles.addAllBtn, addingAll && styles.addAllBtnDisabled]}
-                onPress={handleAddAll}
-                disabled={addingAll}
-              >
-                {addingAll ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.addAllBtnText}>＋ Dodaj wszystkie ({suggestions.length})</Text>
-                )}
-              </Pressable>
-
-              {/* Suggestion chips grouped by reason */}
-              {(['meal_plan', 'low_stock', 'missing_basic', 'ai'] as SuggestionReason[])
-                .map((reason) => {
-                  const group = suggestions.filter((s) => s.reason === reason);
-                  if (group.length === 0) return null;
-                  const meta = REASON_LABELS[reason];
-                  return (
-                    <View key={reason} style={styles.suggestionGroup}>
-                      <View style={[styles.reasonPill, { backgroundColor: meta.color }]}>
-                        <Text style={styles.reasonPillText}>{meta.label}</Text>
-                      </View>
-                      <View style={styles.suggestionChips}>
-                        {group.map((s) => (
-                          <Pressable
-                            key={s.name}
-                            style={styles.suggestionChip}
-                            onPress={() => handleAddSuggestion(s)}
-                          >
-                            <Text style={styles.suggestionChipText}>{s.name}</Text>
-                            <Text style={styles.suggestionChipAdd}>＋</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                  );
-                })}
-            </>
-          )}
-        </View>
-      )}
-    </View>
-  );
+  const listHeaderProps: ListHeaderProps = {
+    newItem, setNewItem, handleAdd, adding,
+    showSuggestions, suggestions, loadingSuggestions, addingAll,
+    handleLoadSuggestions, handleAddSuggestion, handleAddAll,
+    setShowSuggestions, setSuggestions,
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -251,7 +279,7 @@ export default function ShoppingScreen() {
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <View>
-              <ListHeader />
+              <ListHeader {...listHeaderProps} />
               <EmptyState
                 icon="🛒"
                 title="Lista jest pusta"
@@ -280,7 +308,7 @@ export default function ShoppingScreen() {
           refreshing={loading}
           keyboardShouldPersistTaps="handled"
           stickySectionHeadersEnabled={false}
-          ListHeaderComponent={<ListHeader />}
+          ListHeaderComponent={<ListHeader {...listHeaderProps} />}
           renderSectionHeader={({ section }) => (
             grouped.length > 1 ? (
               <Text style={styles.sectionLabel}>{section.title}</Text>

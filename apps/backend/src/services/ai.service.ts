@@ -195,6 +195,124 @@ Maksymalnie 12 pozycji łącznie. Odpowiedz po polsku.`;
 }
 
 // ============================================================
+// Rozpoznawanie daty ważności ze zdjęcia
+// ============================================================
+export async function extractExpiryDateFromImage(
+  imageBase64: string
+): Promise<{ date: string | null; confidence: 'high' | 'low'; raw: string }> {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image_url',
+            image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: 'low' },
+          },
+          {
+            type: 'text',
+            text: `Znajdź datę ważności (BBD, EXP, Najlepiej spożyć przed, Best before, Mindestens haltbar bis) na tym zdjęciu.
+
+Odpowiedz TYLKO w formacie JSON:
+{
+  "date": "YYYY-MM-DD lub null jeśli nie znaleziono",
+  "confidence": "high lub low",
+  "raw": "dokładny tekst daty ze zdjęcia lub pusty string"
+}
+
+Jeśli data ma tylko miesiąc i rok (np. "12/2026"), ustaw dzień na ostatni dzień miesiąca.
+Jeśli nie ma roku, przyjmij najbliższy przyszły rok.`,
+          },
+        ],
+      },
+    ],
+    response_format: { type: 'json_object' },
+    max_tokens: 100,
+  });
+
+  const content = response.choices[0].message.content;
+  if (!content) return { date: null, confidence: 'low', raw: '' };
+
+  return JSON.parse(content);
+}
+
+// ============================================================
+// Import przepisu z URL
+// ============================================================
+export interface ImportedRecipe {
+  title: string;
+  description: string;
+  servings: number;
+  prepTimeMins: number;
+  cookTimeMins: number;
+  ingredients: RecipeIngredient[];
+  instructions: RecipeInstruction[];
+  dietTags: string[];
+}
+
+export async function importRecipeFromUrl(url: string): Promise<ImportedRecipe> {
+  const axios = (await import('axios')).default;
+  const response = await axios.get(url, {
+    timeout: 10000,
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; KuchniApp/1.0)' },
+    maxContentLength: 500_000,
+  });
+
+  const html: string = response.data;
+  // Strip HTML tags and trim whitespace for a cleaner text blob
+  const text = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, 8000); // cap to avoid huge token usage
+
+  const prompt = `Jesteś asystentem kulinarnym. Poniżej znajduje się tekst strony internetowej z przepisem kulinarnym. Wyodrębnij z niego przepis i zwróć go w formacie JSON.
+
+Tekst strony:
+"""
+${text}
+"""
+
+Odpowiedz TYLKO w formacie JSON (bez markdown, bez komentarzy):
+{
+  "title": "Nazwa przepisu",
+  "description": "Krótki opis w 1-2 zdaniach po polsku",
+  "servings": 4,
+  "prepTimeMins": 15,
+  "cookTimeMins": 30,
+  "ingredients": [
+    { "name": "składnik", "quantity": 2, "unit": "szt" }
+  ],
+  "instructions": [
+    { "step": 1, "description": "Opis kroku po polsku" }
+  ],
+  "dietTags": ["wegetariańskie"]
+}
+
+Zasady:
+- Przetłumacz przepis na język polski jeśli jest w innym języku
+- Ilości podawaj w polskich jednostkach (g, ml, łyżka, łyżeczka, szklanka, szt)
+- Kroki instrukcji pisz jasno i zrozumiale
+- dietTags: wybierz pasujące z: wegetariańskie, wegańskie, bezglutenowe, bez laktozy, keto, niskokaloryczne`;
+
+  const aiResponse = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: prompt }],
+    response_format: { type: 'json_object' },
+    temperature: 0.3,
+    max_tokens: 2000,
+  });
+
+  const content = aiResponse.choices[0].message.content;
+  if (!content) throw new Error('Brak odpowiedzi od AI');
+
+  return JSON.parse(content) as ImportedRecipe;
+}
+
+// ============================================================
 // Analiza spiżarni
 // ============================================================
 export async function analyzePantry(

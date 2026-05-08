@@ -61,6 +61,19 @@ function isLowStock(quantity: number, unit: string): boolean {
   return quantity <= threshold;
 }
 
+export async function extractExpiryDate(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { image_base64 } = req.body;
+    if (!image_base64) { sendError(res, 'Brak obrazu', 400); return; }
+    const result = await aiService.extractExpiryDateFromImage(image_base64);
+    sendSuccess(res, result);
+  } catch (err: any) {
+    console.error('[AI] extractExpiryDate error:', err?.message || err);
+    const detail = err?.response?.data?.error?.message || err?.message || 'Nieznany błąd';
+    sendError(res, `Błąd rozpoznawania daty: ${detail}`, 500);
+  }
+}
+
 export async function shoppingSuggestions(req: AuthRequest, res: Response): Promise<void> {
   try {
     const [items, basicProducts, weekMissingIngredients] = await Promise.all([

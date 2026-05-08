@@ -33,3 +33,10 @@ export const getShoppingSuggestions = async (): Promise<ShoppingSuggestion[]> =>
   const { data } = await apiClient.get('/ai/shopping-suggestions');
   return data.data;
 };
+
+export const extractExpiryDate = async (
+  imageBase64: string
+): Promise<{ date: string | null; confidence: 'high' | 'low'; raw: string }> => {
+  const { data } = await apiClient.post('/ai/extract-expiry', { image_base64: imageBase64 });
+  return data.data;
+};

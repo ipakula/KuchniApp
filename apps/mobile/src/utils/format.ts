@@ -1,9 +1,24 @@
 import { UNIT_LABELS } from '../constants/units';
 import { CATEGORY_ICONS } from '../constants/categories';
 
-export const formatQuantity = (quantity: number, unit: string): string => {
+export const formatDate = (dateStr?: string | null): string => {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleDateString('pl-PL', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+export const formatQuantity = (quantity: number | string | undefined | null, unit: string): string => {
   const label = UNIT_LABELS[unit] || unit;
-  const qty = quantity % 1 === 0 ? quantity.toString() : quantity.toFixed(1);
+  const num = Number(quantity);
+  if (isNaN(num)) return `- ${label}`;
+  const qty = num % 1 === 0 ? num.toString() : num.toFixed(1);
   return `${qty} ${label}`;
 };
 

@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PantryItem, PantryStats, AddPantryItemDTO } from '../types/pantry.types';
 import * as pantryApi from '../api/pantry.api';
+import { getLocations } from '../api/auth.api';
 import { getDaysUntilExpiry } from '../utils/date';
 
 interface PantryStore {
@@ -51,11 +52,12 @@ export const usePantryStore = create<PantryStore>()(
       },
 
       fetchLocations: async () => {
-        const { data } = await import('../api/auth.api').then((m) => ({
-          data: m.getLocations(),
-        }));
-        const locations = await data;
-        set({ locations });
+        try {
+          const locations = await getLocations();
+          set({ locations: locations || [] });
+        } catch {
+          // silently keep existing locations
+        }
       },
 
       addItem: async (item) => {

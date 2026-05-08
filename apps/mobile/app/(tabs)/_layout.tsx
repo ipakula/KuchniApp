@@ -57,6 +57,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => <TabIcon icon="🍽️" focused={focused} />,
         }}
       />
+      <Tabs.Screen
+        name="recipes"
+        options={{
+          title: 'Przepisy',
+          tabBarIcon: ({ focused }) => <TabIcon icon="📚" focused={focused} />,
+        }}
+      />
       {/* Profil dostępny tylko przez header avatara, ukryty z tab baru */}
       <Tabs.Screen
         name="profile"
