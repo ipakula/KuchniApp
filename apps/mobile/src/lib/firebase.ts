@@ -1,14 +1,16 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth } from 'firebase/auth';
+// @ts-ignore - getReactNativePersistence exists in firebase 10 but types are broken
+import { getReactNativePersistence } from 'firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
+  apiKey: 'AIzaSyC24VQGTadtzeIOzI4BqQd0PoJOGh6YZuw',
+  authDomain: 'kuchniapp-8fda5.firebaseapp.com',
+  projectId: 'kuchniapp-8fda5',
+  storageBucket: 'kuchniapp-8fda5.firebasestorage.app',
+  messagingSenderId: '776254313210',
+  appId: '1:776254313210:web:a11f9fa5adb0de56e6af43',
 };
 
 const app = initializeApp(firebaseConfig);
