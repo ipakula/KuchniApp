@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { savePushToken } from '../api/auth.api';
 
 Notifications.setNotificationHandler({
@@ -47,7 +48,8 @@ async function registerForPushNotifications() {
 
     if (finalStatus !== 'granted') return;
 
-    const token = await Notifications.getExpoPushTokenAsync();
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? '2c42b28b-b228-4715-abb3-8dc69165da29';
+    const token = await Notifications.getExpoPushTokenAsync({ projectId });
     await savePushToken(token.data, Platform.OS);
   } catch (err) {
     console.warn('[Notifications] Błąd rejestracji:', err);

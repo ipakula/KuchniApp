@@ -39,6 +39,22 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Trigger expiration check — wywoływany przez zewnętrzny cron (cron-job.org)
+app.post('/trigger-expiration-check', async (req, res) => {
+  const secret = req.headers['x-cron-secret'];
+  if (secret !== process.env.CRON_SECRET) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  try {
+    const { runExpirationCheck } = await import('./jobs/expiration-check.job');
+    await runExpirationCheck();
+    res.json({ status: 'ok' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Publiczne trasy auth
 app.use('/v1/auth', authRoutes);
 
