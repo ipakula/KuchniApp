@@ -29,6 +29,9 @@ export default function LocationsScreen() {
     try {
       const data = await getLocations();
       setLocations(data);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || String(err);
+      Alert.alert('Błąd ładowania', msg);
     } finally {
       setLoading(false);
     }
@@ -46,8 +49,9 @@ export default function LocationsScreen() {
       });
       setLocations((prev) => [...prev, data.data]);
       setNewName('');
-    } catch {
-      Alert.alert('Błąd', 'Nie udało się dodać lokalizacji');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || String(err);
+      Alert.alert('Błąd dodawania', msg);
     } finally {
       setSaving(false);
     }

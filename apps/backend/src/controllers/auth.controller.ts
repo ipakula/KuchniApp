@@ -77,8 +77,9 @@ export async function createLocation(req: AuthRequest, res: Response): Promise<v
     if (!name) { sendError(res, 'Nazwa lokalizacji jest wymagana', 400); return; }
     const location = await usersService.createLocation(req.userId!, name, icon || '🏠');
     sendSuccess(res, location, 201);
-  } catch {
-    sendError(res, 'Błąd tworzenia lokalizacji', 500);
+  } catch (err: any) {
+    console.error('[createLocation]', err?.message || err);
+    sendError(res, err?.message || 'Błąd tworzenia lokalizacji', 500);
   }
 }
 

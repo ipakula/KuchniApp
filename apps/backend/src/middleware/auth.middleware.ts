@@ -39,7 +39,8 @@ export const authMiddleware = async (
     }
 
     next();
-  } catch (err) {
+  } catch (err: any) {
+    console.error('[authMiddleware]', err?.message || err);
     sendError(res, 'Nieprawidłowy lub wygasły token', 401);
   }
 };
