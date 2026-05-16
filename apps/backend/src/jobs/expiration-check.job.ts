@@ -28,7 +28,7 @@ export async function runExpirationCheck(): Promise<void> {
 
   // Oznacz przeterminowane
   if (expired.length > 0) {
-    const expiredIds = expired.map((i) => i.id);
+    const expiredIds = expired.map((i: any) => i.id);
     await query(
       `UPDATE pantry_items SET status = 'expired' WHERE id = ANY($1::uuid[])`,
       [expiredIds]
@@ -44,11 +44,11 @@ export async function runExpirationCheck(): Promise<void> {
 
   for (const [userId, items] of Object.entries(byUser)) {
     const count = items.length;
-    const names = items.slice(0, 3).map((i) => i.name).join(', ');
+    const names = items.slice(0, 3).map((i: any) => i.name).join(', ');
     await sendPushNotification(userId, {
       title: `⚠️ ${count} ${count === 1 ? 'produkt kończy się' : 'produkty kończą się'}`,
       body: names + (count > 3 ? ` i ${count - 3} więcej...` : ''),
-      data: { type: 'expiring_soon', itemIds: items.map((i) => i.id), action: 'generate_recipe' },
+      data: { type: 'expiring_soon', itemIds: items.map((i: any) => i.id), action: 'generate_recipe' },
     });
   }
 
@@ -63,8 +63,8 @@ export async function runExpirationCheck(): Promise<void> {
     const count = items.length;
     await sendPushNotification(userId, {
       title: `🗑️ ${count} ${count === 1 ? 'produkt jest przeterminowany' : 'produkty są przeterminowane'}`,
-      body: items.slice(0, 3).map((i) => i.name).join(', '),
-      data: { type: 'expired', itemIds: items.map((i) => i.id) },
+      body: items.slice(0, 3).map((i: any) => i.name).join(', '),
+      data: { type: 'expired', itemIds: items.map((i: any) => i.id) },
     });
   }
 
