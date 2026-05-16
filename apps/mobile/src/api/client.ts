@@ -11,10 +11,14 @@ export const apiClient = axios.create({
 
 // Interceptor — dołącza Firebase ID token do każdego żądania
 apiClient.interceptors.request.use(async (config) => {
-  const user = auth.currentUser;
-  if (user) {
-    const token = await user.getIdToken();
-    config.headers.Authorization = `Bearer ${token}`;
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (err) {
+    console.warn('[API] Nie udało się pobrać tokenu Firebase:', err);
   }
   return config;
 });
