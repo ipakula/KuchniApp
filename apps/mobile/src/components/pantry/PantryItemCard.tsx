@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { PantryItem } from '../../types/pantry.types';
 import { ExpirationBadge } from './ExpirationBadge';
-import { getCategoryIcon, formatQuantity } from '../../utils/format';
+import { getCategoryIcon, formatQuantity, formatDate } from '../../utils/format';
 import { getDaysUntilExpiry } from '../../utils/date';
 import { Colors, Shadows } from '../../constants/colors';
 
@@ -40,6 +40,9 @@ export function PantryItemCard({ item, onPress }: PantryItemCardProps) {
         <Text style={styles.meta}>
           {item.location_name || 'Spiżarnia'} · {formatQuantity(item.quantity, item.unit)}
         </Text>
+        {isOpened && item.opened_date && (
+          <Text style={styles.openedDate}>otwarto {formatDate(item.opened_date)}</Text>
+        )}
         {showBadge && <ExpirationBadge expirationDate={effectiveDate!} />}
       </View>
 
@@ -85,5 +88,6 @@ const styles = StyleSheet.create({
   },
   openedPillText: { fontSize: 10, fontWeight: '700', color: Colors.accent },
   meta: { fontSize: 12, color: Colors.textSecondary },
+  openedDate: { fontSize: 11, color: Colors.accent },
   arrow: { fontSize: 20, color: Colors.textMuted },
 });
